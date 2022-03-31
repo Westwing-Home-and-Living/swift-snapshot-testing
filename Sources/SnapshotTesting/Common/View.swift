@@ -944,6 +944,51 @@ func prepareView(
   return dispose
 }
 
+func prepareWindow(
+    config: ViewImageConfig,
+    traits: UITraitCollection,
+    window: UIWindow
+) {
+    let size = config.size ?? window.rootViewController?.view.frame.size ?? window.frame.size
+    let traits = UITraitCollection(traitsFrom: [config.traits, traits])
+    let controller = window.rootViewController ?? UIViewController()
+    // We don't want to dispose of the window since it is the subject
+    _ = add(traits: traits, viewController: controller, to: window)
+    window.frame.size = size
+
+    if size.width == 0 || size.height == 0 {
+        // Try to call sizeToFit() if the view still has invalid size
+        window.rootViewController?.view.sizeToFit()
+        window.rootViewController?.view.setNeedsLayout()
+        window.rootViewController?.view.layoutIfNeeded()
+    }
+}
+
+func snapshotWindow(
+    config: ViewImageConfig,
+    traits: UITraitCollection,
+    window: UIWindow
+) -> Async<UIImage> {
+
+    prepareWindow(
+        config: config,
+        traits: traits,
+        window: window
+    )
+
+    let snapshot =  window.snapshot ?? Async { callback in
+        addImagesForRenderedViews(window).sequence().run { views in
+            callback(
+                renderer(bounds: window.bounds, for: traits).image { ctx in
+                    window.layer.render(in: ctx.cgContext)
+                }
+            )
+        }
+    }
+
+    return snapshot
+}
+
 func snapshotView(
   config: ViewImageConfig,
   drawHierarchyInKeyWindow: Bool,

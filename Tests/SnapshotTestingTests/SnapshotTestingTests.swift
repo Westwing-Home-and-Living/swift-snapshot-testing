@@ -854,6 +854,21 @@ final class SnapshotTestingTests: XCTestCase {
     #endif
   }
 
+  func testUIWindow() {
+    #if os(iOS)
+    let window = UIWindow()
+    window.backgroundColor = .white
+    window.isHidden = false
+    let viewController = UIViewController()
+    window.rootViewController = viewController
+    let view = UIButton(type: .contactAdd)
+    view.sizeToFit()
+    viewController.view.addSubview(view)
+
+    assertSnapshot(matching: window, as: .image(on: .iPhone8))
+    #endif
+  }
+
   func testUIViewControllerLifeCycle() {
     #if os(iOS)
     class ViewController: UIViewController {
