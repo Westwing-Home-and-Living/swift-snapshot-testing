@@ -859,13 +859,17 @@ final class SnapshotTestingTests: XCTestCase {
     let window = UIWindow()
     window.backgroundColor = .white
     window.isHidden = false
+    window.frame = CGRect(origin: .zero, size: .init(width: 300, height: 500))
     let viewController = UIViewController()
     window.rootViewController = viewController
     let view = UIButton(type: .contactAdd)
     view.sizeToFit()
     viewController.view.addSubview(view)
 
-    assertSnapshot(matching: window, as: .image(on: .iPhone8))
+    assertSnapshot(matching: window, as: .image)
+
+    viewController.view.backgroundColor = .blue
+    assertSnapshot(matching: window, as: .image)
     #endif
   }
 
