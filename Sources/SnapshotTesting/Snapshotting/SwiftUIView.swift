@@ -1,6 +1,7 @@
 #if canImport(SwiftUI)
 import Foundation
 import SwiftUI
+import XCTest
 
 /// The size constraint for a snapshot (similar to `PreviewLayout`).
 public enum SwiftUISnapshotLayout {
@@ -80,6 +81,67 @@ extension Snapshotting where Value: SwiftUI.View, Format == UIImage {
         )
       }
   }
+    
+    /// A snapshot strategy for comparing SwiftUI Views based on pixel equality.
+    ///
+    /// - Parameters:
+    ///   - drawHierarchyInKeyWindow: Utilize the simulator's key window in order to render `UIAppearance` and `UIVisualEffect`s. This option requires a host application for your tests and will _not_ work for framework test targets.
+    ///   - precision: The percentage of pixels that must match.
+    ///   - perceptualPrecision: The percentage a pixel must match the source pixel to be considered a match. [98-99% mimics the precision of the human eye.](http://zschuessler.github.io/DeltaE/learn/#toc-defining-delta-e)
+    ///   - layout: A view layout override.
+    ///   - traits: A trait collection override.
+    public static func image(
+      drawHierarchyInKeyWindow: Bool = false,
+      precision: Float = 1,
+      perceptualPrecision: Float = 1,
+      layout: SwiftUISnapshotLayout = .sizeThatFits,
+      traits: UITraitCollection = .init(),
+      isLoadingCompleted: @escaping () -> Bool
+      )
+      -> Snapshotting {
+        let config: ViewImageConfig
+
+        switch layout {
+        #if os(iOS) || os(tvOS)
+        case let .device(config: deviceConfig):
+          config = deviceConfig
+        #endif
+        case .sizeThatFits:
+          config = .init(safeArea: .zero, size: nil, traits: traits)
+        case let .fixed(width: width, height: height):
+          let size = CGSize(width: width, height: height)
+          config = .init(safeArea: .zero, size: size, traits: traits)
+        }
+
+        return SimplySnapshotting.image(precision: precision, perceptualPrecision: perceptualPrecision, scale: traits.displayScale).asyncPullback { view in
+          var config = config
+
+          let controller: UIViewController
+
+          if config.size != nil {
+            controller = UIHostingController.init(
+              rootView: view
+            )
+          } else {
+            let hostingController = UIHostingController.init(rootView: view)
+
+            let maxSize = CGSize(width: 0.0, height: 0.0)
+            config.size = hostingController.sizeThatFits(in: maxSize)
+
+            controller = hostingController
+          }
+            _ = controller.view
+          XCTWaiter.wait(for: isLoadingCompleted, timeout: 10)
+
+          return snapshotView(
+            config: config,
+            drawHierarchyInKeyWindow: drawHierarchyInKeyWindow,
+            traits: traits,
+            view: controller.view,
+            viewController: controller
+          )
+        }
+    }
 }
 #endif
 #endif
